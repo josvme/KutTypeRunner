@@ -27,4 +27,4 @@ php -c php.ini test.php
 ```
 Intercepted call to Me\T::__construct: args=[]
 Intercepted call to Me\T::test_function: args=["Zval { type: String, val: Some(\"hello\") }", "Zval { type: Long, val: Some(123) }"]
-```
+``

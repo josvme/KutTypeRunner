@@ -1,11 +1,40 @@
 #![cfg_attr(windows, feature(abi_vectorcall))]
 use ext_php_rs::prelude::*;
+use ext_php_rs::types::Zval;
+use ext_php_rs::flags::DataType;
 use ext_php_rs::ffi::{zend_execute_data, zval};
 use std::ffi::CStr;
 
 #[php_function]
 pub fn type_runner(name: &str) -> String {
     format!("Type runner: {}!", name)
+}
+
+pub fn zval_to_string(zv: &Zval) -> String {
+    match zv.get_type() {
+        DataType::Undef => "undefined".to_string(),
+        DataType::Null => "null".to_string(),
+        DataType::False => "bool".to_string(),
+        DataType::True => "bool".to_string(),
+        DataType::Long => "long".to_string(),
+        DataType::Double => "double".to_string(),
+        DataType::String => "string".to_string(),
+        DataType::Array => "array".to_string(),
+        DataType::Object(_) => zv
+            .object()
+            .and_then(|obj| obj.get_class_name().ok())
+            .unwrap_or_else(|| "object".to_string()),
+        DataType::Resource => "resource".to_string(),
+        DataType::Reference => "reference".to_string(),
+        DataType::Indirect => "indirect".to_string(),
+        DataType::Callable => "callable".to_string(),
+        DataType::ConstantExpression => "constant expression".to_string(),
+        DataType::Void => "void".to_string(),
+        DataType::Bool => "bool".to_string(),
+        DataType::Ptr => "pointer".to_string(),
+        DataType::Iterable => "iterable".to_string(),
+        _ => "unknown".to_string(),
+    }
 }
 
 pub fn type_runner_internal(class_name: Option<String>, name: &str, args: Vec<String>) {
@@ -61,14 +90,14 @@ unsafe extern "C" fn observer_begin(execute_data: *mut zend_execute_data) {
     let num_args = unsafe { (*execute_data).This.u2.num_args };
     let mut args = Vec::new();
 
+    let first_arg_ptr = unsafe {execute_data.add(1) as *mut zval};
     // Arguments are stored after the zend_execute_data structure on the stack
     for i in 0..num_args {
-        let arg_ptr = unsafe {
-            let offset = (size_of::<zend_execute_data>() + size_of::<zval>() - 1)
-                / size_of::<zval>();
-            (execute_data as *mut zval).add(offset + i as usize)
-        };
-        args.push(format!("{:?}", unsafe { &*arg_ptr }));
+        // Move the pointer forward by exactly 1 zend_execute_data unit, 
+        // then treat that memory location as a zval.
+        let arg_ptr = unsafe { first_arg_ptr.add(i as usize)};
+        let val = unsafe { &*(arg_ptr as *const Zval) };
+        args.push(zval_to_string(val));
     }
 
     type_runner_internal(class_name, &name, args);
