@@ -24,7 +24,24 @@ Now we can test our extension using our test.php file.
 php -c php.ini test.php
 ```
 
+Output
 ```
 Intercepted call to Me\T::__construct: args=[]
-Intercepted call to Me\T::test_function: args=["Zval { type: String, val: Some(\"hello\") }", "Zval { type: Long, val: Some(123) }"]
-``
+Intercepted call to Me\T::test_function: args=["string", "long"]
+Intercepted call to Me\T::test_function: args=["Me\\T", "stdClass"]
+```
+
+### Testing with real apps
+```sh
+composer create-project symfony/symfony-demo demo
+php -c php.ini -S localhost:8000 -t demo/public/
+```
+
+Output 
+```
+Intercepted call to ComposerAutoloaderInit053d3b4bab2213aebd2d000bac677a7c::getLoader: args=[]
+Intercepted call to ComposerAutoloaderInit053d3b4bab2213aebd2d000bac677a7c::loadClassLoader: args=["string"]
+Intercepted call to Composer\Autoload\ClassLoader::__construct: args=["string"]
+Intercepted call to Composer\Autoload\ClassLoader::initializeIncludeClosure: args=[]
+....
+```

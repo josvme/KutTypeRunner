@@ -13,3 +13,8 @@ class T {
 
 $t = new T();
 $t->test_function("hello", 123);
+$t->test_function($t, new \stdClass());
+
+// This shouldn't be captured
+$n = ltrim(" hello");
+var_dump($n);

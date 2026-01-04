@@ -53,19 +53,9 @@ unsafe extern "C" fn observer_begin(execute_data: *mut zend_execute_data) {
         return;
     }
 
-    let func_name_ptr = unsafe { (*func).common.function_name };
-    if func_name_ptr.is_null() {
-        return;
-    }
-
-    let name = unsafe {
-        CStr::from_ptr((*func_name_ptr).val.as_ptr() as *const _)
-            .to_string_lossy()
-            .into_owned()
-    };
-
-    // Avoid infinite recursion if we call things that are observed
-    if name == "type_runner" || name == "type_runner_internal" {
+    // Only capture non-standard functions (ZEND_USER_FUNCTION = 2)
+    let type_ = unsafe { (*func).type_ };
+    if type_ != 2 {
         return;
     }
 
@@ -86,6 +76,30 @@ unsafe extern "C" fn observer_begin(execute_data: *mut zend_execute_data) {
             None
         }
     };
+
+    // Skipping Symfony functions
+    if let Some(ref class_name) = class_name {
+        if class_name.starts_with("Symfony\\") {
+            return;
+        }
+    }
+
+    let func_name_ptr = unsafe { (*func).common.function_name };
+    if func_name_ptr.is_null() {
+        return;
+    }
+
+    let name = unsafe {
+        CStr::from_ptr((*func_name_ptr).val.as_ptr() as *const _)
+            .to_string_lossy()
+            .into_owned()
+    };
+
+    // Avoid infinite recursion if we call things that are observed
+    if name == "type_runner" || name == "type_runner_internal" {
+        return;
+    }
+
 
     let num_args = unsafe { (*execute_data).This.u2.num_args };
     let mut args = Vec::new();
