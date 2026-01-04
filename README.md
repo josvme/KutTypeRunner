@@ -9,7 +9,7 @@ Rust is set up using [rustup](https://rustup.rs/)
 ### Setting up PHP
 To enter the nix shell, which has php with required sources, do 
 ```sh
-nix develop
+devenv shell
 ```
 
 ### Building the extension
