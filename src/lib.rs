@@ -2,7 +2,7 @@
 use ext_php_rs::prelude::*;
 use ext_php_rs::types::Zval;
 use ext_php_rs::flags::DataType;
-use ext_php_rs::ffi::{zend_execute_data, zval};
+use ext_php_rs::ffi::{zend_execute_data, zend_function, zval};
 use std::ffi::CStr;
 
 #[php_function]
@@ -49,44 +49,22 @@ unsafe extern "C" fn observer_begin(execute_data: *mut zend_execute_data) {
         return;
     }
 
-    let class_name = unsafe {
-        let scope = (*func).common.scope;
-        if !scope.is_null() {
-            let class_name_ptr = (*scope).name;
-            if !class_name_ptr.is_null() {
-                Some(
-                    CStr::from_ptr((*class_name_ptr).val.as_ptr() as *const _)
-                        .to_string_lossy()
-                        .into_owned(),
-                )
-            } else {
-                None
-            }
-        } else {
-            None
-        }
-    };
+    let class_name = get_class_name(func);
 
-    // Skipping Symfony functions
-    if let Some(ref class_name) = class_name {
-        if class_name.starts_with("Symfony\\") {
-            return;
-        }
-    }
 
     let func_name_ptr = unsafe { (*func).common.function_name };
     if func_name_ptr.is_null() {
         return;
     }
 
-    let name = unsafe {
+    let function_name = unsafe {
         CStr::from_ptr((*func_name_ptr).val.as_ptr() as *const _)
             .to_string_lossy()
             .into_owned()
     };
 
     // Avoid infinite recursion if we call things that are observed
-    if name == "type_runner" {
+    if function_name == "type_runner" {
         return;
     }
 
@@ -104,12 +82,33 @@ unsafe extern "C" fn observer_begin(execute_data: *mut zend_execute_data) {
     }
 
     let msg = if let Some(class_name2) = class_name {
-        format!("Intercepted call to {}::{}: args={:?}\n", class_name2, &name, args)
+        format!("Intercepted call to {}::{}: args={:?}\n", class_name2, &function_name, args)
     } else {
-        format!("Intercepted call to {}: args={:?}\n", &name, args)
+        format!("Intercepted call to {}: args={:?}\n", &function_name, args)
     };
 
     print!("{}", msg);
+}
+
+unsafe fn get_class_name(func: *mut zend_function) -> Option<String> {
+    let class_name = unsafe {
+        let scope = (*func).common.scope;
+        if !scope.is_null() {
+            let class_name_ptr = (*scope).name;
+            if !class_name_ptr.is_null() {
+                Some(
+                    CStr::from_ptr((*class_name_ptr).val.as_ptr() as *const _)
+                        .to_string_lossy()
+                        .into_owned(),
+                )
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    };
+    class_name
 }
 
 #[repr(C)]
@@ -120,6 +119,18 @@ pub struct zend_observer_fcall_handlers {
 
 unsafe extern "C" fn zend_observer_fcall_init(_execute_data: *mut zend_execute_data) -> zend_observer_fcall_handlers {
     // We can optimize this by only returning begin and end for functions which we are interested in.
+    let func = unsafe { (*_execute_data).func };
+    let class_name = get_class_name(func);
+
+    // Skipping Symfony classes
+    if let Some(ref class_name) = class_name {
+        if class_name.starts_with("Symfony\\") {
+            return zend_observer_fcall_handlers {
+                begin: None,
+                end: None,
+            }
+        }
+    }
     zend_observer_fcall_handlers {
         begin: Some(observer_begin),
         end: None,
