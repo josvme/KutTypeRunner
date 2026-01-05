@@ -37,16 +37,6 @@ pub fn zval_to_string(zv: &Zval) -> String {
     }
 }
 
-pub fn type_runner_internal(class_name: Option<String>, name: &str, args: Vec<String>) {
-    let msg = if let Some(class_name) = class_name {
-        format!("Intercepted call to {}::{}: args={:?}\n", class_name, name, args)
-    } else {
-        format!("Intercepted call to {}: args={:?}\n", name, args)
-    };
-
-    print!("{}", msg);
-}
-
 unsafe extern "C" fn observer_begin(execute_data: *mut zend_execute_data) {
     let func = unsafe { (*execute_data).func };
     if func.is_null() {
@@ -96,10 +86,9 @@ unsafe extern "C" fn observer_begin(execute_data: *mut zend_execute_data) {
     };
 
     // Avoid infinite recursion if we call things that are observed
-    if name == "type_runner" || name == "type_runner_internal" {
+    if name == "type_runner" {
         return;
     }
-
 
     let num_args = unsafe { (*execute_data).This.u2.num_args };
     let mut args = Vec::new();
@@ -107,14 +96,20 @@ unsafe extern "C" fn observer_begin(execute_data: *mut zend_execute_data) {
     let first_arg_ptr = unsafe {execute_data.add(1) as *mut zval};
     // Arguments are stored after the zend_execute_data structure on the stack
     for i in 0..num_args {
-        // Move the pointer forward by exactly 1 zend_execute_data unit, 
+        // Move the pointer forward by exactly 1 zend_execute_data unit,
         // then treat that memory location as a zval.
         let arg_ptr = unsafe { first_arg_ptr.add(i as usize)};
         let val = unsafe { &*(arg_ptr as *const Zval) };
         args.push(zval_to_string(val));
     }
 
-    type_runner_internal(class_name, &name, args);
+    let msg = if let Some(class_name2) = class_name {
+        format!("Intercepted call to {}::{}: args={:?}\n", class_name2, &name, args)
+    } else {
+        format!("Intercepted call to {}: args={:?}\n", &name, args)
+    };
+
+    print!("{}", msg);
 }
 
 #[repr(C)]
@@ -123,7 +118,8 @@ pub struct zend_observer_fcall_handlers {
     pub end: Option<unsafe extern "C" fn(execute_data: *mut zend_execute_data, retval: *mut zval)>,
 }
 
-unsafe extern "C" fn observer_handler(_execute_data: *mut zend_execute_data) -> zend_observer_fcall_handlers {
+unsafe extern "C" fn zend_observer_fcall_init(_execute_data: *mut zend_execute_data) -> zend_observer_fcall_handlers {
+    // We can optimize this by only returning begin and end for functions which we are interested in.
     zend_observer_fcall_handlers {
         begin: Some(observer_begin),
         end: None,
@@ -134,14 +130,10 @@ unsafe extern "C" {
     fn zend_observer_fcall_register(init: Option<unsafe extern "C" fn(execute_data: *mut zend_execute_data) -> zend_observer_fcall_handlers>);
 }
 
-pub fn php_module_startup() {
-    unsafe {
-        zend_observer_fcall_register(Some(observer_handler));
-    }
-}
-
 #[php_module]
 pub fn get_module(module: ModuleBuilder) -> ModuleBuilder {
-    php_module_startup();
+    unsafe {
+        zend_observer_fcall_register(Some(zend_observer_fcall_init));
+    }
     module.function(wrap_function!(type_runner))
 }

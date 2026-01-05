@@ -18,3 +18,6 @@ $t->test_function($t, new \stdClass());
 // This shouldn't be captured
 $n = ltrim(" hello");
 var_dump($n);
+
+// Function we defined
+var_dump(type_runner("hello"));
