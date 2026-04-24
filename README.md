@@ -35,6 +35,7 @@ Intercepted call to Me\T::test_function: args=["Me\\T", "stdClass"]
 ```sh
 composer create-project symfony/symfony-demo demo
 php -c php.ini -S localhost:8000 -t demo/public/
+curl http://localhost:8000/
 ```
 
 Output 

@@ -1,8 +1,8 @@
 #![cfg_attr(windows, feature(abi_vectorcall))]
+use ext_php_rs::ffi::{zend_execute_data, zend_function, zval};
+use ext_php_rs::flags::DataType;
 use ext_php_rs::prelude::*;
 use ext_php_rs::types::Zval;
-use ext_php_rs::flags::DataType;
-use ext_php_rs::ffi::{zend_execute_data, zend_function, zval};
 use std::ffi::CStr;
 
 #[php_function]
@@ -49,8 +49,7 @@ unsafe extern "C" fn observer_begin(execute_data: *mut zend_execute_data) {
         return;
     }
 
-    let class_name = get_class_name(func);
-
+    let class_name = unsafe { get_class_name(func) };
 
     let func_name_ptr = unsafe { (*func).common.function_name };
     if func_name_ptr.is_null() {
@@ -71,23 +70,26 @@ unsafe extern "C" fn observer_begin(execute_data: *mut zend_execute_data) {
     let num_args = unsafe { (*execute_data).This.u2.num_args };
     let mut args = Vec::new();
 
-    let first_arg_ptr = unsafe {execute_data.add(1) as *mut zval};
+    let first_arg_ptr = unsafe { execute_data.add(1) as *mut zval };
     // Arguments are stored after the zend_execute_data structure on the stack
     for i in 0..num_args {
         // Move the pointer forward by exactly 1 zend_execute_data unit,
         // then treat that memory location as a zval.
-        let arg_ptr = unsafe { first_arg_ptr.add(i as usize)};
+        let arg_ptr = unsafe { first_arg_ptr.add(i as usize) };
         let val = unsafe { &*(arg_ptr as *const Zval) };
         args.push(zval_to_string(val));
     }
 
     let msg = if let Some(class_name2) = class_name {
-        format!("Intercepted call to {}::{}: args={:?}\n", class_name2, &function_name, args)
+        format!(
+            "Intercepted call to {}::{}: args={:?}\n",
+            class_name2, &function_name, args
+        )
     } else {
         format!("Intercepted call to {}: args={:?}\n", &function_name, args)
     };
 
-    print!("{}", msg);
+    eprint!("{}", msg);
 }
 
 unsafe fn get_class_name(func: *mut zend_function) -> Option<String> {
@@ -117,18 +119,20 @@ pub struct zend_observer_fcall_handlers {
     pub end: Option<unsafe extern "C" fn(execute_data: *mut zend_execute_data, retval: *mut zval)>,
 }
 
-unsafe extern "C" fn zend_observer_fcall_init(_execute_data: *mut zend_execute_data) -> zend_observer_fcall_handlers {
+unsafe extern "C" fn zend_observer_fcall_init(
+    _execute_data: *mut zend_execute_data,
+) -> zend_observer_fcall_handlers {
     // We can optimize this by only returning begin and end for functions which we are interested in.
     let func = unsafe { (*_execute_data).func };
-    let class_name = get_class_name(func);
+    let class_name = unsafe { get_class_name(func) };
 
     // Skipping Symfony classes
     if let Some(ref class_name) = class_name {
-        if class_name.starts_with("Symfony\\") {
+        if class_name.starts_with("0") {
             return zend_observer_fcall_handlers {
                 begin: None,
                 end: None,
-            }
+            };
         }
     }
     zend_observer_fcall_handlers {
@@ -138,7 +142,13 @@ unsafe extern "C" fn zend_observer_fcall_init(_execute_data: *mut zend_execute_d
 }
 
 unsafe extern "C" {
-    fn zend_observer_fcall_register(init: Option<unsafe extern "C" fn(execute_data: *mut zend_execute_data) -> zend_observer_fcall_handlers>);
+    fn zend_observer_fcall_register(
+        init: Option<
+            unsafe extern "C" fn(
+                execute_data: *mut zend_execute_data,
+            ) -> zend_observer_fcall_handlers,
+        >,
+    );
 }
 
 #[php_module]
