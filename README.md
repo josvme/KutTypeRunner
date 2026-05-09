@@ -12,6 +12,30 @@ To enter the nix shell, which has php with required sources, do
 devenv shell
 ```
 
+### Docker dev shell (devenv alternative)
+If you are not using `devenv`, use the containerized shell:
+
+```sh
+docker compose up -d --build
+docker compose exec devenv bash
+devenv shell
+```
+
+This uses a Nix-based container with `devenv` installed, so the environment is sourced from `devenv.nix` directly for feature parity.
+Nix/devenv caches are persisted via Docker named volumes, so repeated runs avoid re-downloading most artifacts.
+
+When done:
+
+```sh
+docker compose down
+```
+
+To also clear caches:
+
+```sh
+docker compose down -v
+```
+
 ### Building the extension
 Now we can build our extension
 ```sh

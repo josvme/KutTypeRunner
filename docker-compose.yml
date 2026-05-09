@@ -1,0 +1,20 @@
+services:
+  devenv:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: devenv
+    working_dir: /workspace
+    volumes:
+      - ./:/workspace
+      - nix-store:/nix
+      - devenv-cache:/root/.cache
+      - devenv-state:/root/.local/share/devenv
+    tty: true
+    stdin_open: true
+    command: ["sleep", "infinity"]
+
+volumes:
+  nix-store:
+  devenv-cache:
+  devenv-state:
