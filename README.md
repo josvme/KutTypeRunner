@@ -70,3 +70,28 @@ Intercepted call to Composer\Autoload\ClassLoader::__construct: args=["string"]
 Intercepted call to Composer\Autoload\ClassLoader::initializeIncludeClosure: args=[]
 ....
 ```
+
+# Benchmark Summary
+
+## Micro-Benchmarks
+
+| Benchmark | Baseline median (ns/op) | With ext median (ns/op) | Slowdown % | Delta (ns/op) |
+|---|---:|---:|---:|---:|
+| control_loop | 6.97 | 7.04 | 0.95 | 0.07 |
+| method_instance | 53.20 | 461.54 | 767.58 | 408.34 |
+| method_static | 48.48 | 406.44 | 738.43 | 357.96 |
+| mixed_argument_shapes | 124.24 | 657.06 | 428.87 | 532.83 |
+| no_arg_user_function | 28.01 | 244.54 | 772.95 | 216.52 |
+| object_args | 63.56 | 715.06 | 1025.06 | 651.50 |
+| scalar_args | 134.70 | 457.14 | 239.37 | 322.44 |
+
+## Symfony Benchmark
+
+| Scenario | Baseline rps | With ext rps | Throughput drop % | Baseline p95 (ms) | With ext p95 (ms) | Latency slowdown % |
+|---|---:|---:|---:|---:|---:|---:|
+| / @c1 | 68.45 | 62.79 | 8.27 | 16.69 | 18.01 | 7.96 |
+| / @c20 | 70.89 | 64.55 | 8.95 | 283.57 | 314.76 | 11.00 |
+
+## Notes
+- Slowdown formula: `(with_ext / baseline) - 1`
+- Throughput drop formula: `1 - (with_ext_rps / baseline_rps)`

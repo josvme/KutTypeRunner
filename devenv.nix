@@ -12,6 +12,7 @@
     pkgs.php.unwrapped.dev
     pkgs.llvmPackages.clang
     pkgs.llvmPackages.libcxx
+    pkgs.k6
   ];
 
   env.LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
