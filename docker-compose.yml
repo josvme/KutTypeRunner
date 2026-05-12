@@ -7,7 +7,6 @@ services:
     working_dir: /workspace
     volumes:
       - ./:/workspace
-      - nix-store:/nix
       - devenv-cache:/root/.cache
       - devenv-state:/root/.local/share/devenv
     tty: true

@@ -39,7 +39,7 @@ docker compose down -v
 ### Building the extension
 Now we can build our extension
 ```sh
-cargo build
+cargo build --releas
 ```
 
 ### Testing the extension
